@@ -1,0 +1,89 @@
+---
+title: "Peer-graded Assignment: Statistical Inference Course Project"
+author: "Gilbert Toroitich Tarus"
+date: "27/01/2021"
+output:
+  pdf_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE,echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache = TRUE,warning=FALSE)
+```
+### **Overview**
+This submission is a report on the investigtion of exponential distribution in R comparing it with the Central Limit Theorem. This project is done using a sample of 40 exponential for thousand simulations.
+
+### **Simulation Example**
+**The Exponential Distribution**
+
+In order to simualte 40 observations, we utilize the `rexp()` function in r with arguments `n = 40` and `lamda = .2`. However, to generate 1000 such simulations, we use the `matrix()` function  with dimensions `1000 * 40`
+
+```{r}
+nosim <- 1000
+n <- 40
+lamda <- 0.2
+expSimulation <- matrix(rexp(n*nosim,lamda),nosim,n)
+theoriticalMean <- 1/lamda
+```
+
+Calculate the mean of each sample. We will have 1000 averages.
+```{r}
+sampledMean <- apply(expSimulation, 1, mean)
+```
+**1. Show the sample mean and compare it to the theoretical mean of the distribution.**
+
+**Plot**
+```{r}
+library(ggplot2)
+ggplot(data.frame(x <- sampledMean),aes(x = x))+
+    geom_histogram(fill = "salmon",bins = 50)+
+    geom_vline(xintercept = mean(x),size = 2, color = "black")+
+    labs(title = "Histogram of Sample means",x = "Sample Mean")
+```
+
+The sample means are are centered arround 5 shown by the vertical line in the plot is equal to theoritical mean `r {theoriticalMean}`.
+
+**2. Show how variable the sample is (via variance) and compare it to the theoretical variance of the distribution.**
+
+```{r}
+sampledVariance <- apply(expSimulation, 1, var)
+ggplot(data.frame(x <- sampledVariance),aes(x = x))+
+    geom_histogram(fill = "magenta",bins = 50)+
+    geom_vline(xintercept = (1/lamda)^2,size = 2, color = "black")+
+    labs(title = "Histogram of Sample Variance",x = "Sample Variance")
+```
+
+The distribution of sample variance is centered around the theoritical variance `r {(1/lamda)^2}`
+
+**3. Show that the distribution is approximately normal.**
+
+```{r,fig.height=5,fig.width=12}
+library(gridExtra)
+set.seed(1234)
+x <- rexp(nosim,lamda)
+g1 <- ggplot(data.frame(x),aes(x = x))+
+    geom_histogram(fill = "salmon",bins = 50)+
+    geom_vline(xintercept = mean(x),size = 2, color = "black")+
+    labs(title = "Histogram of n = 1000 Samples\nfrom exponential distribution",x = "Sample")
+g2 <- ggplot(data.frame(x = sampledMean),aes(x = x))+
+    geom_histogram(fill = "salmon",bins = 50)+
+    geom_vline(xintercept = mean(x),size = 2, color = "black")+
+    labs(title = "Histogram of Sample means for 1000 \nsimulations",x = "Sample Mean")
+
+grid.arrange(g1,g2,ncol = 2)
+```
+
+The plot on the left side follows an exponential distribution with mean 5.  
+The plot on the right side is bell-shaped. This follows a normal distributin with mean 5 and standard error `r {sd(sampledMean)/sqrt(length(sampledMean))}`
+
+```{r, echo=FALSE,results='hide',fig.show='hide'}
+
+## Example
+hist(runif(1000))
+mns = NULL
+for (i in 1:1000) {
+    mns = c(mns,mean(runif(40)))
+}
+
+hist(mns)
+```

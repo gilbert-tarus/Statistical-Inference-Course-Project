@@ -1,0 +1,216 @@
+---
+title: "Peer-graded Assignment: Statistical Inference Course Project"
+author: "Gilbert Toroitich Tarus"
+date: "27/01/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE,echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache = TRUE,warning=FALSE)
+```
+### **Overview**
+This submission is a report on the investigtion of exponential distribution in R comparing it with the Central Limit Theorem. This project is done using a sample of 40 exponential for thousand simulations.
+
+### **Simulation Example**
+**The Exponential Distribution**
+
+In order to simualte 40 observations, we utilize the `rexp()` function in r with arguments `n = 40` and `lamda = .2`. However, to generate 1000 such simulations, we use the `matrix()` function  with dimensions `1000 * 40`
+
+```{r}
+nosim <- 1000
+n <- 40
+lamda <- 0.2
+expSimulation <- matrix(rexp(n*nosim,lamda),nosim,n)
+theoriticalMean <- 1/lamda
+```
+
+Calculate the mean of each sample. We will have 1000 averages.
+```{r}
+sampledMean <- apply(expSimulation, 1, mean)
+```
+**1. Show the sample mean and compare it to the theoretical mean of the distribution.**
+
+**Plot**
+```{r}
+library(ggplot2)
+ggplot(data.frame(x <- sampledMean),aes(x = x))+
+    geom_histogram(fill = "salmon",bins = 50)+
+    geom_vline(xintercept = mean(x),size = 2, color = "black")+
+    labs(title = "Histogram of Sample means",x = "Sample Mean")
+```
+
+The sample means are are centered arround 5 shown by the vertical line in the plot is equal to theoritical mean `r {theoriticalMean}`.
+
+**2. Show how variable the sample is (via variance) and compare it to the theoretical variance of the distribution.**
+
+```{r}
+sampledVariance <- apply(expSimulation, 1, var)
+ggplot(data.frame(x <- sampledVariance),aes(x = x))+
+    geom_histogram(fill = "magenta",bins = 50)+
+    geom_vline(xintercept = (1/lamda)^2,size = 2, color = "black")+
+    labs(title = "Histogram of Sample Variance",x = "Sample Variance")
+```
+
+The distribution of sample variance is centered around the theoritical variance `r {(1/lamda)^2}`
+
+**3. Show that the distribution is approximately normal.**
+
+```{r,fig.height=5,fig.width=12}
+library(gridExtra)
+set.seed(1234)
+x <- rexp(nosim,lamda)
+g1 <- ggplot(data.frame(x),aes(x = x))+
+    geom_histogram(fill = "salmon",bins = 50)+
+    geom_vline(xintercept = mean(x),size = 2, color = "black")+
+    labs(title = "Histogram of n = 1000 Samples\nfrom exponential distribution",x = "Sample")
+g2 <- ggplot(data.frame(x = sampledMean),aes(x = x))+
+    geom_histogram(fill = "salmon",bins = 50)+
+    geom_vline(xintercept = mean(x),size = 2, color = "black")+
+    labs(title = "Histogram of Sample means for 1000 \nsimulations",x = "Sample Mean")
+
+grid.arrange(g1,g2,ncol = 2)
+```
+
+The plot on the left side follows an exponential distribution with mean 5.  
+The plot on the right side is bell-shaped. This follows a normal distributin with mean 5 and standard error `r {sd(sampledMean)/sqrt(length(sampledMean))}`
+
+```{r, echo=FALSE,results='hide',fig.show='hide'}
+
+## Example
+hist(runif(1000))
+mns = NULL
+for (i in 1:1000) {
+    mns = c(mns,mean(runif(40)))
+}
+
+hist(mns)
+```
+
+### **Part 2: Basic Inferential Data Analysis Instructions**
+
+In this part, we analyze the `ToothGrowth` data in the R `datasets` package
+
+**1 Load the ToothGrowth data and perform some basic exploratory data analyses. **
+```{r}
+library(datasets)
+data("ToothGrowth")
+```
+
+The top 10 observations
+```{r}
+head(ToothGrowth,10)
+```
+
+```{r}
+table(ToothGrowth$supp,ToothGrowth$dose)
+```
+
+**Box Plot**
+```{r}
+library(ggplot2)
+ggplot(ToothGrowth,aes(y = len))+#, y = len,col = supp))+
+  geom_boxplot(aes(fill = supp))+
+  labs(title = "Boxplot of Tooth length by type of Supplement",x = "Supplement",y = "Length")
+```
+
+From the above plot, it is clear that the length of odontoblasts in the 60 guinea pigs is higher for those the animals that received Orange Juice (OJ) compared to those who received Vitamin C (VC). This shows that there is a significant difference in the effects of the delivery methods. 
+
+**Scatter Plot**
+```{r}
+ggplot(ToothGrowth, aes(x = dose, y = len, group = factor(supp),fill = supp))+
+  geom_point(size =5, pch = 21,alpha = .5)+
+  labs(title = "Scatter plot of Length against doses of delivery methods")+
+  geom_smooth(method = "lm",se = FALSE,aes(color = supp))
+```
+
+From the above plot, there is a significant increase in the length as the dose increase for both orange juice and vitamin C. The Orange juice exhibits higher increase compared to Vitamin C.
+
+
+**2. Provide a basic summary of the data.**
+
+Overview
+```{r}
+summary(ToothGrowth)
+```
+
+```{r}
+cor(ToothGrowth$len,ToothGrowth$dose)
+```
+
+There is a strong positive relationship between tooth length and the amount of dose.
+
+**Distribution of tooth length by type of supplement and amount of doses**
+
+```{r}
+ggplot(ToothGrowth,aes(y = len,fill = as.factor(dose)))+
+  geom_boxplot()+
+  facet_grid(. ~ supp)+
+  guides(fill = guide_legend(title = "Dose"))
+```
+
+From the plot above, those who received 2 doses have higher length followed by those who received 1 and those with least tooth length are those who received 0.5 doses for both supplements.
+
+
+**3. Use confidence intervals and/or hypothesis tests to compare tooth growth by supp and dose. (Only use the techniques from class, even if there's other approaches worth considering)**
+
+**Comparing tooth growth by supplemnt**
+
+The null hypothesis assumes that there is no significant difference in the mean growth among type supplements.
+
+```{r}
+t.test(ToothGrowth$len~ToothGrowth$supp)$conf.int
+```
+
+The confidence interval above contains 0. This shows that there is no significant difference in tooth growth by supplement. Therefore we fail to reject the null hypothesis.
+
+**Dose 0.5 and 1.0**
+
+The null hypothesis assumes that there is no significant difference in the mean growth between dose 0.5 and 1.0.
+
+```{r}
+# Subset the data that contains 0.5 and 1 doses only
+comb1 <- ToothGrowth[ToothGrowth$dose%in%c(.5,1),]
+#Compare their means
+t.test(comb1$len~comb1$dose,var.equal = TRUE)$conf.int
+```
+
+The confidence interval above is below 0 (does not contain 0). This shows that there is a significant difference in tooth growth between dose 0.5 and 1.0. Therefore we reject the null hypothesis.
+
+**Dose 0.5 and 2.0**
+
+The null hypothesis assumes that there is no significant difference in the mean growth between dose 0.5 and 2.0.
+
+```{r}
+# Subset the data that contains 0.5 and 2 doses only
+comb2 <- ToothGrowth[ToothGrowth$dose%in%c(.5,2),]
+#Compare the means
+t.test(comb2$len~comb2$dose,var.equal = TRUE)$conf.int
+```
+
+The confidence interval above is below 0(does not contain 0). This shows that there is a significant difference in tooth growth between dose 0.5 and 2.0. Therefore we reject the null hypothesis.
+
+**Dose 1.0 and 2.0**
+
+The null hypothesis assumes that there is no significant difference in the mean growth between dose 1.0 and 2.0.
+
+```{r}
+comb3 <- ToothGrowth[ToothGrowth$dose%in%c(1,2),]
+t.test(comb3$len~comb3$dose,var.equal = TRUE)$conf.int
+```
+
+The confidence interval above is below 0 (does not contain 0). This shows that there is a significant difference in tooth growth between dose 1.0 and 2.0. Therefore we reject the null hypothesis.
+
+**4. State your conclusions and the assumptions needed for your conclusions.**
+
+**Assumptions**
+
+ * When comparing tooth growth by supplement type, the equality of variance is assumed to be false.  
+ * When comparing tooth growth by dose, the equality of variance is assumed to be true.  
+ * The tooth length is assumed to be normally distributed.  
+ 
+**Conclusions**
+
+ * There is no significant differnce in tooth length between Orange Juice (OJ) and Vitamin C (VC). At 95% confidence, with equal doses, there is no significant difference in the tooth length.  
+ * Given different doses of supplement at 95% confidence interval causes a significantly difference in the tooth length.  
